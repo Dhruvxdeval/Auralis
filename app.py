@@ -147,7 +147,9 @@ def analyze_audio(text, sounds):
     # ---------- FINAL RESULT ----------
     # Backend se frontend ko yahi JSON milega
 
+    summary = f"This audio likely comes from a {location.lower()} during {situation.lower()}, inferred from {' '.join(evidence)} with a confidence of {confidence}."
     return {
+        "summary": summary,
         "location": location,
         "situation": situation,
         "confidence": round(confidence, 2),
@@ -216,7 +218,9 @@ async def analyze(file: UploadFile = File(...)):
             "status": "Auralis API running",
             "docs": "/docs"
         }
-
+    
     # ---------- FINAL INFERENCE ----------
     # Ab text + sounds ko dimag me bhejte hain
     return analyze_audio(text, sounds)
+    
+    
