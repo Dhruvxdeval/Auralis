@@ -107,7 +107,7 @@ def analyze_audio(text, sounds):
 
     location = "Unknown"
     situation = "Unknown"
-    evidence = []          # judge ko explain karne ke liye
+    evidence = []          
     confidence = 0.3       # default low confidence
 
     # ---------- AIRPORT RULE ----------
@@ -209,6 +209,13 @@ async def analyze(file: UploadFile = File(...)):
         k: v for k, v in raw_sounds.items()
         if any(x in k.lower() for x in keywords)
     }
+
+    #"/" se /docs me khulne k liye 
+    def home():
+        return{
+            "status": "Auralis API running",
+            "docs": "/docs"
+        }
 
     # ---------- FINAL INFERENCE ----------
     # Ab text + sounds ko dimag me bhejte hain
