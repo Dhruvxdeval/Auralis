@@ -23,6 +23,8 @@ import requests
 # transformers pipeline → Whisper speech-to-text ke liye
 from transformers import pipeline
 
+#for directing port output url "/docs"
+from fastapi.responses import RedirectResponse
 
 # ==============================
 # 🚀 FASTAPI APP CREATE
@@ -31,6 +33,11 @@ from transformers import pipeline
 # Ye hamara backend app hai
 # Iska naam Auralis
 app = FastAPI(title="Auralis API")
+
+#redirecting port url for which imported at ln27
+@app.get("/")
+def root():
+    return RedirectResponse(url= "/docs")
 
 
 # Whisper model load ho raha hai
@@ -110,7 +117,8 @@ def analyze_audio(text, sounds):
     situation = "Unknown"
     evidence = []          
     confidence = 0.3       # default low confidence
-
+    summary = "none"
+    
     # ---------- AIRPORT RULE ----------
     # Agar text me flight related baat
     # aur sound me crowd / conversation
@@ -155,20 +163,23 @@ def analyze_audio(text, sounds):
     # Backend se frontend ko yahi JSON milega
     if is_emergency_text or is_emergency_sound:
         return {
-            "summary": "Emergency situation detected based on distress signals in the audio.",
+            
             "location": location,
             "situation": "Emergency",
             "confidence": 0.95,
             "confidence_reason": "High confidence due to presence of emergency keywords or sounds.",
-            "evidence": sound_labels
+            "evidence": sound_labels,
+            "summary": "Emergency situation detected based on distress signals in the audio.",
+            "transcribed": text
         }
     summary = f"This audio likely comes from a {location.lower()} during {situation.lower()}, inferred from {' '.join(evidence)} with a confidence of {confidence}."
     return {
-        "summary": summary,
         "location": location,
         "situation": situation,
         "confidence": round(confidence, 2),
-        "evidence": evidence
+        "evidence": evidence,
+        "summary": summary,
+        "transcribed": text
     }
 
 
@@ -182,13 +193,16 @@ def analyze_audio(text, sounds):
 
 @app.post("/analyze")
 async def analyze(file: UploadFile = File(...)):
+    #checking who fails backend or frontend
+    print("file received", file.filename)
 
     # Frontend se aayi audio file bytes me hoti hai
     audio_bytes = await file.read()
 
     # Usko temporary WAV file bana dete hain
     # Taaki Whisper aur librosa use kar sake
-    with open("temp.wav", "wb") as f:
+    filename=file.filename
+    with open(filename, "wb") as f:
         f.write(audio_bytes)
 
     # ---------- WHISPER ----------
