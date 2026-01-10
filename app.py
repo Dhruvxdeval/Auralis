@@ -34,6 +34,19 @@ from fastapi.responses import RedirectResponse
 # Iska naam Auralis
 app = FastAPI(title="Auralis API")
 
+#cors
+
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://fluffy-barnacle-f4xp9pgr6jx5fw9-5500.app.github.dev"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 #redirecting port url for which imported at ln27
 @app.get("/")
 def root():
