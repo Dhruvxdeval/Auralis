@@ -39,9 +39,7 @@ app = FastAPI(title="Auralis API")
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://fluffy-barnacle-f4xp9pgr6jx5fw9-5500.app.github.dev"
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -226,7 +224,11 @@ async def analyze(file: UploadFile = File(...)):
     # ---------- LOAD AUDIO ----------
     # WAV file → numbers (waveform)
     audio, _ = librosa.load("temp.wav", sr=16000)
+    duration = librosa.get_duration(y=audio, sr=16000)
 
+    if duration > 12:
+        return {"error": "Audio too long. Max 12 seconds."}
+    
     # ---------- YAMNet ----------
     # Audio → sound probabilities
     scores, _, _ = yamnet(audio)
