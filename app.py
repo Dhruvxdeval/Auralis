@@ -223,59 +223,82 @@ async def analyze(file: UploadFile = File(...)):
 
     # Usko temporary WAV file bana dete hain
     # Taaki Whisper aur librosa use kar sake
-    filename=file.filename
-    with open(filename, "wb") as f:
+   
+    #filename=file.filename
+    #with open(filename, "wb") as f:
+    #    f.write(audio_bytes)
+
+    import uuid
+    import os
+
+    os.makedirs("uploads", exist_ok=True)
+
+    unique_id = uuid.uuid4().hex
+    temp_audio_path = f"uploads/{unique_id}.wav"
+
+    with open(temp_audio_path, "wb") as f:
         f.write(audio_bytes)
+        f.flush()
+        os.fsync(f.fileno())
 
     # ---------- WHISPER ----------
     # Audio → Text
-    whisper_result = whisper("temp.wav")
-    text = whisper_result["text"]
+    try:
+        whisper_result = whisper(temp_audio_path)
+        text = whisper_result["text"]
 
-    # ---------- LOAD AUDIO ----------
-    # WAV file → numbers (waveform)
-    audio, _ = librosa.load("temp.wav", sr=16000)
-    duration = librosa.get_duration(y=audio, sr=16000)
+        # ---------- LOAD AUDIO ----------
+        # WAV file → numbers (waveform)
+        audio, _ = librosa.load(temp_audio_path, sr=16000)
+        duration = librosa.get_duration(y=audio, sr=16000)
+        MAX_SECONDS = 15
+        audio = audio[: MAX_SECONDS * 16000]
 
-    if duration > 12:
-        return {"error": "Audio too long. Max 12 seconds."}
+
+        if duration > 12:
+          return {"error": "Audio too long. Max 12 seconds."}
     
-    # ---------- YAMNet ----------
-    # Audio → sound probabilities
-    scores, _, _ = yamnet(audio)
+         # ---------- YAMNet ----------
+        # Audio → sound probabilities
+        scores, _, _ = yamnet(audio)
 
-    # Har sound ka average confidence
-    mean_scores = tf.reduce_mean(scores, axis=0).numpy()
+        # Har sound ka average confidence
+        mean_scores = tf.reduce_mean(scores, axis=0).numpy()
 
-    # Top 10 sabse strong sounds
-    top_indices = np.argsort(mean_scores)[-10:][::-1]
+        # Top 10 sabse strong sounds
+        top_indices = np.argsort(mean_scores)[-10:][::-1]
 
-    raw_sounds = {}
-    for i in top_indices:
-        raw_sounds[labels[i]] = float(mean_scores[i])
+        raw_sounds = {}
+        for i in top_indices:
+            raw_sounds[labels[i]] = float(mean_scores[i])
 
-    # ---------- FILTER IMPORTANT SOUNDS ----------
-    # 500+ sounds me se sirf kaam ke sounds rakhte hain
-    keywords = [
-        "speech", "conversation", "crowd",
-        "vehicle", "engine", "traffic",
-        "aircraft", "siren"
-    ]
+        # ---------- FILTER IMPORTANT SOUNDS ----------
+        # 500+ sounds me se sirf kaam ke sounds rakhte hain
+        keywords = [
+            "speech", "conversation", "crowd",
+            "vehicle", "engine", "traffic",
+            "aircraft", "siren"
+        ]
 
-    sounds = {
-        k: v for k, v in raw_sounds.items()
-        if any(x in k.lower() for x in keywords)
-    }
-
-    #"/" se /docs me khulne k liye 
-    def home():
-        return{
-            "status": "Auralis API running",
-            "docs": "/docs"
+        sounds = {
+            k: v for k, v in raw_sounds.items()
+            if any(x in k.lower() for x in keywords)
         }
+
+        #"/" se /docs me khulne k liye 
+        def home():
+            return{
+                "status": "Auralis API running",
+                "docs": "/docs"
+            }
     
-    # ---------- FINAL INFERENCE ----------
-    # Ab text + sounds ko dimag me bhejte hain
-    return analyze_audio(text, sounds)
-    
+        # ---------- FINAL INFERENCE ----------
+        # Ab text + sounds ko dimag me bhejte hain
+        return analyze_audio(text, sounds)
+    finally:
+        # Temporary file delete 
+        try:
+            os.remove(temp_audio_path)
+        except Exception as e:
+            print(f"Error deleting temporary file: {e}")
     
