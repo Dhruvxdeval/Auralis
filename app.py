@@ -51,15 +51,15 @@ def root():
     return RedirectResponse(url= "/docs")
 
 #CORS ==== added on 9th jan ,2026 ; 7:40 p.m. ====
-#from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
-#app.add_middleware(
-#    CORSMiddleware,
- #   allow_origins=["*"],
- #   allow_credentials=True,
- #   allow_methods=["*"],
- #   allow_headers=["*"],
-#)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Whisper model load ho raha hai
@@ -244,22 +244,20 @@ async def analyze(file: UploadFile = File(...)):
     # ---------- WHISPER ----------
     # Audio → Text
     try:
-        whisper_result = whisper(
-            temp_audio_path,
-            chunk_length_s=15,
-            stride_length_s=5,
-            return_timestamps=False,
-            language="en" # English me transcription
-        )
+        whisper_result = whisper(temp_audio_path)
         text = whisper_result["text"]
 
         # ---------- LOAD AUDIO ----------
         # WAV file → numbers (waveform)
         audio, _ = librosa.load(temp_audio_path, sr=16000)
         duration = librosa.get_duration(y=audio, sr=16000)
-        MAX_SECONDS = 15 # YAMNet ka limit hai 15 seconds here 
+        MAX_SECONDS = 15
         audio = audio[: MAX_SECONDS * 16000]
 
+
+        if duration > 12:
+          return {"error": "Audio too long. Max 12 seconds."}
+    
          # ---------- YAMNet ----------
         # Audio → sound probabilities
         scores, _, _ = yamnet(audio)
@@ -297,24 +295,10 @@ async def analyze(file: UploadFile = File(...)):
         # ---------- FINAL INFERENCE ----------
         # Ab text + sounds ko dimag me bhejte hain
         return analyze_audio(text, sounds)
-    
-    # ---------- ERROR HANDLING ----------
-    except Exception as e:
-        return {
-            "location": "Unknown",
-            "situation": "Unknown",
-            "confidence": 0.0,
-            "evidence": [],
-            "summary": "Error processing audio.",
-            "transcribed": "",
-            "error": str(e)
-        }
-
-
     finally:
         # Temporary file delete 
         try:
             os.remove(temp_audio_path)
-        except Exception as et:
-            print(f"Error deleting temporary file: {et}")
+        except Exception as e:
+            print(f"Error deleting temporary file: {e}")
     
